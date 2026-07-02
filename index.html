@@ -433,8 +433,8 @@
         <div class="ubicacion-section">
             <h2>Ubicación del Evento:</h2>
             <div class="ubicacion-inputs">
-                <input type="text" id="direccionInput" placeholder="Escribe la dirección del evento (ej: Calle Principal 123, Ciudad)" onkeydown="if(event.key==='Enter')buscarDireccion()">
-                <input type="text" id="referenciaInput" placeholder="Referencia adicional (ej: Frente al parque, casa azul)">
+                <input type="text" id="direccionInput" placeholder="Escribe la dirección del evento (ej: Calle Arce, Centro Histórico, San Salvador)" onkeydown="if(event.key==='Enter')buscarDireccion()">
+                <input type="text" id="referenciaInput" placeholder="Referencia adicional (ej: Frente a la Catedral, casa azul)">
             </div>
             <p class="ubicacion-info">📍 Haz clic en el mapa para marcar la ubicación exacta, o escribe la dirección y presiona Enter</p>
             <div id="map"></div>
@@ -512,19 +512,23 @@
 
     <script>
         // === MAPA ===
+        // Centro por defecto: Centro Histórico de San Salvador, El Salvador
         let map, marker;
-        let lat = 19.4326;  // Ciudad de México por defecto
-        let lng = -99.1332;
+        let lat = 13.6929;  // Centro Histórico de San Salvador
+        let lng = -89.2182;
 
         function initMap() {
-            map = L.map('map').setView([lat, lng], 13);
+            map = L.map('map').setView([lat, lng], 16);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
-            // Marcador inicial
+            // Marcador inicial en Centro Histórico de San Salvador
             marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+
+            // Obtener dirección inicial del Centro Histórico
+            actualizarUbicacion(lat, lng);
 
             // Evento: clic en el mapa
             map.on('click', function(e) {
@@ -538,16 +542,19 @@
                 actualizarUbicacion(pos.lat, pos.lng);
             });
 
-            // Intentar geolocalización del usuario
+            // Intentar geolocalización del usuario (solo si está en El Salvador aproximadamente)
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(function(position) {
                     const userLat = position.coords.latitude;
                     const userLng = position.coords.longitude;
-                    map.setView([userLat, userLng], 15);
-                    marker.setLatLng([userLat, userLng]);
-                    actualizarUbicacion(userLat, userLng);
+                    // Solo usar geolocalización si está cerca de El Salvador (aproximadamente)
+                    if (userLat > 12 && userLat < 15 && userLng > -90 && userLng < -87) {
+                        map.setView([userLat, userLng], 16);
+                        marker.setLatLng([userLat, userLng]);
+                        actualizarUbicacion(userLat, userLng);
+                    }
                 }, function() {
-                    console.log('Geolocalización no disponible');
+                    console.log('Geolocalización no disponible o fuera de El Salvador');
                 });
             }
         }
@@ -582,7 +589,13 @@
             const query = document.getElementById('direccionInput').value;
             if (!query.trim()) return;
 
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+            // Añadir "San Salvador, El Salvador" a la búsqueda para mejorar resultados
+            let searchQuery = query;
+            if (!query.toLowerCase().includes('san salvador') && !query.toLowerCase().includes('el salvador')) {
+                searchQuery = query + ', San Salvador, El Salvador';
+            }
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.length > 0) {
@@ -643,6 +656,12 @@
             document.getElementById('direccionInput').value = '';
             document.getElementById('referenciaInput').value = '';
             document.getElementById('ubicacionDatos').classList.remove('visible');
+
+            // Resetear mapa al Centro Histórico de San Salvador
+            map.setView([13.6929, -89.2182], 16);
+            marker.setLatLng([13.6929, -89.2182]);
+            actualizarUbicacion(13.6929, -89.2182);
+
             calcularTotal();
         }
 
